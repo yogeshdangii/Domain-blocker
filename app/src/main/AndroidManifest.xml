@@ -42,3 +42,4 @@ android:theme="@style/Theme.DOMAINBLOCKER">
 </service>
 
 </application>
+</manifest>
