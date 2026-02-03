@@ -26,12 +26,33 @@ class LocalDnsVpnService : VpnService() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        // Intercept the kill switch command from the UI
+        if (intent?.action == "ACTION_DISCONNECT") {
+            Log.d("VpnService", "Disconnect action received. Stopping VPN.")
+            stopVpn()
+            stopSelf() // Tells Android we are done
+            return START_NOT_STICKY
+        }
+
         Log.d("VpnService", "VPN Service Started")
         if (!isRunning.get()) {
             isRunning.set(true)
+            BlockManager.setVpnActive(true) // Sync to UI
             setupVpn()
         }
         return START_STICKY
+    }
+
+    // A centralized cleanup function to guarantee everything closes
+    private fun stopVpn() {
+        if (isRunning.get()) {
+            isRunning.set(false)
+            BlockManager.setVpnActive(false) // Sync to UI
+            vpnThread?.interrupt()
+            try { vpnInterface?.close() } catch (e: Exception) {}
+            vpnInterface = null
+            Log.d("VpnService", "VPN Interface closed and thread interrupted.")
+        }
     }
 
     private fun setupVpn() {
@@ -224,9 +245,7 @@ class LocalDnsVpnService : VpnService() {
     }
 
     override fun onDestroy() {
-        isRunning.set(false)
-        vpnThread?.interrupt()
-        try { vpnInterface?.close() } catch (e: Exception) {}
+        stopVpn() // Ensure cleanup runs even if system forces a destroy
         super.onDestroy()
         Log.d("VpnService", "VPN Service Destroyed")
     }
