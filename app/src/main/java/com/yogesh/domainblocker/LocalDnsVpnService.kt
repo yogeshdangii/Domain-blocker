@@ -26,28 +26,26 @@ class LocalDnsVpnService : VpnService() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        // Intercept the kill switch command from the UI
         if (intent?.action == "ACTION_DISCONNECT") {
             Log.d("VpnService", "Disconnect action received. Stopping VPN.")
             stopVpn()
-            stopSelf() // Tells Android we are done
+            stopSelf()
             return START_NOT_STICKY
         }
 
         Log.d("VpnService", "VPN Service Started")
         if (!isRunning.get()) {
             isRunning.set(true)
-            BlockManager.setVpnActive(true) // Sync to UI
+            BlockManager.setVpnActive(true)
             setupVpn()
         }
         return START_STICKY
     }
 
-    // A centralized cleanup function to guarantee everything closes
     private fun stopVpn() {
         if (isRunning.get()) {
             isRunning.set(false)
-            BlockManager.setVpnActive(false) // Sync to UI
+            BlockManager.setVpnActive(false)
             vpnThread?.interrupt()
             try { vpnInterface?.close() } catch (e: Exception) {}
             vpnInterface = null
@@ -59,11 +57,9 @@ class LocalDnsVpnService : VpnService() {
         try {
             val builder = Builder()
                 .setSession("Domain Blocker")
-                // IPv4 Configuration
                 .addAddress("10.0.0.2", 24)
                 .addDnsServer("10.0.0.1")
                 .addRoute("10.0.0.0", 24)
-                // IPv6 Blackhole Configuration (Prevents OS from leaking DNS via Cellular IPv6)
                 .addAddress("fd00::2", 128)
                 .addDnsServer("fd00::3")
                 .addRoute("fd00::", 120)
@@ -87,7 +83,7 @@ class LocalDnsVpnService : VpnService() {
         val packet = ByteArray(32767)
 
         val forwardSocket = DatagramSocket()
-        protect(forwardSocket) // Prevents the socket's own traffic from entering the VPN loop
+        protect(forwardSocket)
         forwardSocket.soTimeout = 2000
 
         val realDnsIp = InetAddress.getByName("8.8.8.8")
@@ -114,14 +110,14 @@ class LocalDnsVpnService : VpnService() {
                                 val domainName = extractDomainName(dnsPayload)
 
                                 if (isDomainBlocked(domainName)) {
-                                    // 🛑 BLOCKED
+                                    //  BLOCKED
                                     Log.d("VpnService", "🛡️ BLOCKED: $domainName")
                                     val spoofedDnsPayload = buildNxDomainResponse(dnsPayload)
                                     val finalResponse = buildIpv4UdpPacket(spoofedDnsPayload, sourceIp, sourcePort, originalDestIp)
                                     outputStream.write(finalResponse)
 
                                 } else {
-                                    // ✅ ALLOWED
+                                    // ALLOWED
                                     Log.d("VpnService", "DNS Request for: $domainName")
                                     val outPacket = DatagramPacket(dnsPayload, dnsPayload.size, realDnsIp, 53)
                                     forwardSocket.send(outPacket)
@@ -155,7 +151,7 @@ class LocalDnsVpnService : VpnService() {
 
     private fun extractDomainName(dnsPayload: ByteArray): String {
         try {
-            var i = 12 // Skip DNS header
+            var i = 12
             val domain = StringBuilder()
             while (i < dnsPayload.size) {
                 val len = dnsPayload[i].toInt() and 0xFF
@@ -175,11 +171,11 @@ class LocalDnsVpnService : VpnService() {
     }
 
     private fun isDomainBlocked(domain: String): Boolean {
-        // Get the live list from the UI bridge
+
         val liveBlockedDomains = BlockManager.activeBlockedDomains.value
 
         if (liveBlockedDomains.contains(domain)) {
-            BlockManager.incrementBlockCount() // Tell the UI to increase the counter!
+            BlockManager.incrementBlockCount()
             return true
         }
 
@@ -187,7 +183,7 @@ class LocalDnsVpnService : VpnService() {
         if (parts.size >= 2) {
             val rootDomain = "${parts[parts.size - 2]}.${parts[parts.size - 1]}"
             if (liveBlockedDomains.contains(rootDomain)) {
-                BlockManager.incrementBlockCount() // Tell the UI to increase the counter!
+                BlockManager.incrementBlockCount()
                 return true
             }
         }

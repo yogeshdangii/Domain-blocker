@@ -5,7 +5,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 
-// Data class to represent your bundles
+// data class to represent categories
 data class DomainBundle(
     val name: String,
     val domains: List<String>,
@@ -13,7 +13,7 @@ data class DomainBundle(
 )
 
 object BlockManager {
-    // --- ADDED FOR VPN STATE ---
+
     private val _isVpnActive = MutableStateFlow(false)
     val isVpnActive: StateFlow<Boolean> = _isVpnActive.asStateFlow()
 
@@ -21,7 +21,6 @@ object BlockManager {
         _isVpnActive.value = isActive
     }
 
-    // 1. The Blocked Counter
     private val _blockedCount = MutableStateFlow(0)
     val blockedCount: StateFlow<Int> = _blockedCount.asStateFlow()
 
@@ -29,7 +28,6 @@ object BlockManager {
         _blockedCount.update { it + 1 }
     }
 
-    // 2. The Domain Bundles
     private val _bundles = MutableStateFlow(
         listOf(
             DomainBundle("Ad Networks", listOf("ads.google.com", "doubleclick.net", "app-measurement.com"), true),
@@ -39,16 +37,13 @@ object BlockManager {
     )
     val bundles: StateFlow<List<DomainBundle>> = _bundles.asStateFlow()
 
-    // 3. The Active Set (Used by the VPN for lightning-fast lookups)
     private val _activeBlockedDomains = MutableStateFlow<Set<String>>(emptySet())
     val activeBlockedDomains: StateFlow<Set<String>> = _activeBlockedDomains.asStateFlow()
 
     init {
-        // Calculate initial active domains
         recalculateActiveDomains()
     }
 
-    // Toggle a bundle on or off from the UI
     fun toggleBundle(bundleName: String, isEnabled: Boolean) {
         _bundles.update { currentBundles ->
             currentBundles.map {
@@ -65,7 +60,7 @@ object BlockManager {
         recalculateActiveDomains()
     }
 
-    // Update an existing bundle's name or domain list
+    // Update existing
     fun updateBundle(oldName: String, newName: String, newDomains: List<String>) {
         _bundles.update { currentBundles ->
             currentBundles.map {
@@ -79,7 +74,7 @@ object BlockManager {
         recalculateActiveDomains()
     }
 
-    // Delete a bundle entirely
+    // Delete a category
     fun deleteBundle(bundleName: String) {
         _bundles.update { currentBundles ->
             currentBundles.filter { it.name != bundleName }
