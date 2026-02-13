@@ -14,6 +14,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 class LocalDnsVpnService : VpnService() {
 
+    // imp variables for managing vpn service
     private var vpnInterface: ParcelFileDescriptor? = null
     private var isRunning = AtomicBoolean(false)
     private var vpnThread: Thread? = null
