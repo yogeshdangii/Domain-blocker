@@ -1,5 +1,6 @@
 package com.yogesh.domainblocker
 
+import android.R
 import android.app.Activity
 import android.content.Intent
 import android.net.VpnService
@@ -18,10 +19,11 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.runtime.saveable.rememberSaveable // ADD THIS IMPORT
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -42,7 +44,12 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // database initialize
+        BlockManager.initialize(applicationContext)
+
         setContent {
+            // collect vpn ki current status
             val isVpnActive by BlockManager.isVpnActive.collectAsState()
 
             MaterialTheme {
@@ -59,8 +66,7 @@ class MainActivity : ComponentActivity() {
                                 stopVpnService()
                                 BlockManager.setVpnActive(false)
                             }
-                        }
-                    )
+                        })
                 }
             }
         }
@@ -68,9 +74,9 @@ class MainActivity : ComponentActivity() {
 
     private fun prepareAndStartVpn() {
         val intent = VpnService.prepare(this)
-        if (intent != null) {
+        if (intent != null)
             vpnPermissionLauncher.launch(intent)
-        } else {
+        else {
             startVpnService()
             BlockManager.setVpnActive(true)
         }
@@ -104,7 +110,7 @@ fun BlockerScreen(
         floatingActionButton = {
             FloatingActionButton(
                 onClick = {
-                    bundleNameToEdit = null // Null means "Create New"
+                    bundleNameToEdit = null
                     showEditDialog = true
                 },
                 containerColor = MaterialTheme.colorScheme.primary
@@ -122,10 +128,11 @@ fun BlockerScreen(
         ) {
             Spacer(modifier = Modifier.height(24.dp))
 
-            Text("Local Ad Blocker", fontSize = 28.sp, fontWeight = FontWeight.Bold)
+            Text("DOMAIN BLOCKER", fontSize = 28.sp, fontWeight = FontWeight.Bold, fontStyle = FontStyle.Italic)
 
             Spacer(modifier = Modifier.height(32.dp))
 
+            //power button ka background
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(
@@ -133,7 +140,9 @@ fun BlockerScreen(
                 )
             ) {
                 Row(
-                    modifier = Modifier.fillMaxWidth().padding(20.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(20.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -148,19 +157,32 @@ fun BlockerScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
+            //blocked counter ka card
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(
-                    modifier = Modifier.fillMaxWidth().padding(20.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(20.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text("Queries Blocked", fontSize = 14.sp, color = Color.Gray)
-                    Text("$blockedCount", fontSize = 48.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                    Text(
+                        "$blockedCount",
+                        fontSize = 48.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
                 }
             }
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            Text("Blocklists", fontSize = 20.sp, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.Start))
+            Text(
+                "Blocklists",
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.align(Alignment.Start)
+            )
             Spacer(modifier = Modifier.height(8.dp))
 
             LazyColumn(
@@ -180,6 +202,7 @@ fun BlockerScreen(
             }
         }
     }
+
 
     if (showEditDialog) {
         val bundleToEdit = bundles.find { it.name == bundleNameToEdit }
@@ -204,6 +227,7 @@ fun BundleItem(
     onEdit: (DomainBundle) -> Unit,
     onDelete: (DomainBundle) -> Unit
 ) {
+
     var isExpanded by rememberSaveable { mutableStateOf(false) }
 
     Card(
@@ -219,7 +243,12 @@ fun BundleItem(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(bundle.name, fontSize = 18.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
+                Text(
+                    bundle.name,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Medium,
+                    modifier = Modifier.weight(1f)
+                )
                 Checkbox(
                     checked = bundle.isEnabled,
                     onCheckedChange = { BlockManager.toggleBundle(bundle.name, it) }
@@ -228,10 +257,13 @@ fun BundleItem(
 
             AnimatedVisibility(visible = isExpanded) {
                 Column(
-                    modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, bottom = 12.dp)
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 16.dp, end = 16.dp, bottom = 12.dp)
                 ) {
                     HorizontalDivider(modifier = Modifier.padding(bottom = 8.dp))
 
+                    // edit and delete karne ka logic
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.End
@@ -240,12 +272,22 @@ fun BundleItem(
                             Icon(Icons.Default.Edit, contentDescription = "Edit", tint = Color.Gray)
                         }
                         IconButton(onClick = { onDelete(bundle) }) {
-                            Icon(Icons.Default.Delete, contentDescription = "Delete", tint = Color.Red)
+                            Icon(
+                                Icons.Default.Delete,
+                                contentDescription = "Delete",
+                                tint = Color.Red
+                            )
                         }
                     }
 
+                    // domain list
                     bundle.domains.forEach { domain ->
-                        Text("• $domain", fontSize = 14.sp, color = Color.Gray, modifier = Modifier.padding(vertical = 2.dp))
+                        Text(
+                            "• $domain",
+                            fontSize = 14.sp,
+                            color = Color.Gray,
+                            modifier = Modifier.padding(vertical = 2.dp)
+                        )
                     }
                 }
             }
@@ -260,7 +302,13 @@ fun BundleEditDialog(
     onSave: (oldName: String?, newName: String, domains: List<String>) -> Unit
 ) {
     var name by rememberSaveable(bundle?.name) { mutableStateOf(bundle?.name ?: "") }
-    var domainsText by rememberSaveable(bundle?.name) { mutableStateOf(bundle?.domains?.joinToString("\n") ?: "") }
+    var domainsText by rememberSaveable(bundle?.name) {
+        mutableStateOf(
+            bundle?.domains?.joinToString(
+                "\n"
+            ) ?: ""
+        )
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,

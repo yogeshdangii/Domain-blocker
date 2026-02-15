@@ -1,19 +1,31 @@
 package com.yogesh.domainblocker
 
+import android.content.Context
+import androidx.room.Entity
+import androidx.room.PrimaryKey
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 
-// data class to represent categories
+// to treat this class like sql table
+@Entity(tableName = "bundles")
 data class DomainBundle(
-    val name: String,
+    @PrimaryKey val name: String,
     val domains: List<String>,
     var isEnabled: Boolean = false
 )
 
-object BlockManager {
+// _ and bina _  => backing property bolte , good practice
+// _vale actual variables , bina dash vale used to send data
+// original variable remains stateful and can't be modified from outside of here normally
 
+object BlockManager {
+    // status of vpn
     private val _isVpnActive = MutableStateFlow(false)
     val isVpnActive: StateFlow<Boolean> = _isVpnActive.asStateFlow()
 
@@ -21,6 +33,7 @@ object BlockManager {
         _isVpnActive.value = isActive
     }
 
+    // blocked queries vala counter
     private val _blockedCount = MutableStateFlow(0)
     val blockedCount: StateFlow<Int> = _blockedCount.asStateFlow()
 
@@ -28,58 +41,57 @@ object BlockManager {
         _blockedCount.update { it + 1 }
     }
 
-    private val _bundles = MutableStateFlow(
-        listOf(
-            DomainBundle("Ad Networks", listOf("ads.google.com", "doubleclick.net", "app-measurement.com"), true),
-            DomainBundle("Social Media", listOf("facebook.com", "instagram.com", "tiktok.com", "graph.facebook.com"), false),
-            DomainBundle("Malware & Tracking", listOf("telemetry.microsoft.com", "analytics.yahoo.com"), false)
-        )
-    )
+    // domaain bundles and data base
+    private val _bundles = MutableStateFlow<List<DomainBundle>>(emptyList())
     val bundles: StateFlow<List<DomainBundle>> = _bundles.asStateFlow()
 
     private val _activeBlockedDomains = MutableStateFlow<Set<String>>(emptySet())
     val activeBlockedDomains: StateFlow<Set<String>> = _activeBlockedDomains.asStateFlow()
 
-    init {
-        recalculateActiveDomains()
-    }
+    private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    private var bundleDao: BundleDao? = null
 
-    fun toggleBundle(bundleName: String, isEnabled: Boolean) {
-        _bundles.update { currentBundles ->
-            currentBundles.map {
-                if (it.name == bundleName) it.copy(isEnabled = isEnabled) else it
-            }
-        }
-        recalculateActiveDomains()
-    }
+    // when app starts
+    fun initialize(context: Context) {
+        if (bundleDao != null) return // already initialised
+        val db = AppDatabase.getDatabase(context)
+        bundleDao = db.bundleDao()
 
-    // Add a brand new bundle
-    fun addBundle(name: String, domains: List<String>) {
-        val newBundle = DomainBundle(name = name, domains = domains, isEnabled = true)
-        _bundles.update { it + newBundle }
-        recalculateActiveDomains()
-    }
-
-    // Update existing
-    fun updateBundle(oldName: String, newName: String, newDomains: List<String>) {
-        _bundles.update { currentBundles ->
-            currentBundles.map {
-                if (it.name == oldName) {
-                    it.copy(name = newName, domains = newDomains)
+        // if db me change hota , this activated instant
+        scope.launch {
+            bundleDao!!.getAllBundles().collect { dbBundles ->
+                if (dbBundles.isEmpty()) {
+                    // first time opening app , apne default bundles load karo
+                    DefaultBundles.getBundles().forEach { bundleDao!!.insertBundle(it) }
                 } else {
-                    it
+                    _bundles.value = dbBundles
+                    recalculateActiveDomains()
                 }
             }
         }
-        recalculateActiveDomains()
     }
 
-    // Delete a category
-    fun deleteBundle(bundleName: String) {
-        _bundles.update { currentBundles ->
-            currentBundles.filter { it.name != bundleName }
+    fun toggleBundle(bundleName: String, isEnabled: Boolean) {
+        scope.launch { bundleDao?.updateBundleStatus(bundleName, isEnabled) }
+    }
+
+    fun addBundle(name: String, domains: List<String>) {
+        scope.launch { bundleDao?.insertBundle(DomainBundle(name, domains, true)) }
+    }
+
+    fun updateBundle(oldName: String, newName: String, newDomains: List<String>) {
+        scope.launch {
+            val oldBundle = _bundles.value.find { it.name == oldName }
+            val isEnabled = oldBundle?.isEnabled ?: true
+            if (oldName != newName) {
+                bundleDao?.deleteBundleByName(oldName)
+            }
+            bundleDao?.insertBundle(DomainBundle(newName, newDomains, isEnabled))
         }
-        recalculateActiveDomains()
+    }
+
+    fun deleteBundle(bundleName: String) {
+        scope.launch { bundleDao?.deleteBundleByName(bundleName) }
     }
 
     private fun recalculateActiveDomains() {

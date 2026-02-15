@@ -23,18 +23,18 @@ class LocalDnsVpnService : VpnService() {
 
     override fun onCreate() {
         super.onCreate()
-        Log.d("VpnService", "VPN Service Created")
+        Log.d("VpnService", "VPN service created**")
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == "ACTION_DISCONNECT") {
-            Log.d("VpnService", "Disconnect action received. Stopping VPN.")
+            Log.d("VpnService", "Disconnect action received Stopping VPN&&&&&&&")
             stopVpn()
             stopSelf()
             return START_NOT_STICKY
         }
 
-        Log.d("VpnService", "VPN Service Started")
+        Log.d("VpnService", "VPN Service Started******")
         if (!isRunning.get()) {
             isRunning.set(true)
             BlockManager.setVpnActive(true)
@@ -50,7 +50,7 @@ class LocalDnsVpnService : VpnService() {
             vpnThread?.interrupt()
             try { vpnInterface?.close() } catch (e: Exception) {}
             vpnInterface = null
-            Log.d("VpnService", "VPN Interface closed and thread interrupted.")
+            Log.d("VpnService", "VPN interface closed and thread interrupted????")
         }
     }
 
@@ -70,9 +70,9 @@ class LocalDnsVpnService : VpnService() {
             vpnThread = Thread { packetLoop() }
             vpnThread?.start()
 
-            Log.d("VpnService", "VPN Interface established.")
+            Log.d("VpnService", "VPN interface established")
         } catch (e: Exception) {
-            Log.e("VpnService", "Error starting VPN: ${e.message}")
+            Log.e("VpnService", "eror starting VPN: ${e.message}")
             stopSelf()
         }
     }
@@ -112,14 +112,14 @@ class LocalDnsVpnService : VpnService() {
 
                                 if (isDomainBlocked(domainName)) {
                                     //  BLOCKED
-                                    Log.d("VpnService", "🛡️ BLOCKED: $domainName")
+                                    Log.d("VpnService", "loooool BLOCKED: $domainName")
                                     val spoofedDnsPayload = buildNxDomainResponse(dnsPayload)
                                     val finalResponse = buildIpv4UdpPacket(spoofedDnsPayload, sourceIp, sourcePort, originalDestIp)
                                     outputStream.write(finalResponse)
 
                                 } else {
                                     // ALLOWED
-                                    Log.d("VpnService", "DNS Request for: $domainName")
+                                    Log.d("VpnService", "DNS REQUEST : $domainName")
                                     val outPacket = DatagramPacket(dnsPayload, dnsPayload.size, realDnsIp, 53)
                                     forwardSocket.send(outPacket)
 
@@ -133,7 +133,7 @@ class LocalDnsVpnService : VpnService() {
                                         val finalResponse = buildIpv4UdpPacket(dnsResponse, sourceIp, sourcePort, originalDestIp)
                                         outputStream.write(finalResponse)
                                     } catch (e: Exception) {
-                                        Log.w("VpnService", "DNS Timeout for $domainName")
+                                        Log.w("VpnService", "dns timeout $domainName")
                                     }
                                 }
                             }
@@ -193,8 +193,7 @@ class LocalDnsVpnService : VpnService() {
 
     private fun buildNxDomainResponse(dnsQuery: ByteArray): ByteArray {
         val response = dnsQuery.copyOf()
-        // DNS Header bytes 2 & 3 hold the flags.
-        // 0x8183 = Standard Query Response, NXDOMAIN (Non-Existent Domain)
+        // 0x81 x83 matlab NXDOMAIN (Non-Existent Domain)
         if (response.size >= 4) {
             response[2] = 0x81.toByte()
             response[3] = 0x83.toByte()
@@ -209,21 +208,21 @@ class LocalDnsVpnService : VpnService() {
         val packet = ByteArray(totalLen)
         val bb = ByteBuffer.wrap(packet)
 
-        bb.put(0x45.toByte()) // IPv4 + IHL 5
-        bb.put(0.toByte()) // TOS
+        bb.put(0x45.toByte()) // version, header length
+        bb.put(0.toByte()) // service ka type
         bb.putShort(totalLen.toShort())
-        bb.putShort(0.toShort()) // ID
+        bb.putShort(0.toShort()) // identification number
         bb.putShort(0.toShort()) // Flags
         bb.put(64.toByte()) // TTL
         bb.put(17.toByte()) // UDP
-        bb.putShort(0.toShort()) // Checksum placeholder
-        bb.put(sourceIp) // Source is what the app expects (10.0.0.1)
-        bb.put(destIp) // Destination is the app's IP (10.0.0.2)
+        bb.putShort(0.toShort()) // checksum placeholder
+        bb.put(sourceIp) // src is what the app expects (10.0.0.1)
+        bb.put(destIp) // dest is the app's IP (10.0.0.2)
 
-        bb.putShort(53.toShort()) // DNS Port
+        bb.putShort(53.toShort()) // dns port
         bb.putShort(destPort)
         bb.putShort((udpHeaderLen + dnsResponse.size).toShort())
-        bb.putShort(0.toShort()) // UDP Checksum placeholder
+        bb.putShort(0.toShort()) // udp checksum
 
         bb.put(dnsResponse)
 
@@ -242,8 +241,8 @@ class LocalDnsVpnService : VpnService() {
     }
 
     override fun onDestroy() {
-        stopVpn() // Ensure cleanup runs even if system forces a destroy
+        stopVpn()
         super.onDestroy()
-        Log.d("VpnService", "VPN Service Destroyed")
+        Log.d("VpnService", "vpn service killed")
     }
 }
