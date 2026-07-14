@@ -136,7 +136,7 @@ fun BlockerScreen(
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(
-                    containerColor = if (isVpnActive) Color(0xFFE8F5E9) else MaterialTheme.colorScheme.surfaceVariant
+                    containerColor = if (isVpnActive) Color(0xFFE86E95) else MaterialTheme.colorScheme.surfaceVariant
                 )
             ) {
                 Row(
