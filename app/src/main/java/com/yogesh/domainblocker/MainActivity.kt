@@ -165,7 +165,7 @@ fun BlockerScreen(
                         .padding(20.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Text("Queries Blocked", fontSize = 14.sp, color = Color.Gray)
+                    Text("Blocked DNS queries", fontSize = 14.sp, color = Color.Gray)
                     Text(
                         "$blockedCount",
                         fontSize = 48.sp,

@@ -6,7 +6,7 @@ object DefaultBundles {
     fun getBundles(): List<DomainBundle> {
         return listOf(
             DomainBundle(
-                name = "Strict Ad Blocker",
+                name = "Ad Blocker",
                 isEnabled = true,
                 domains = listOf(
                     "ads.google.com",
@@ -35,7 +35,6 @@ object DefaultBundles {
                 domains = listOf(
                     "facebook.com",
                     "instagram.com",
-                    "tiktok.com",
                     "twitter.com",
                     "x.com",
                     "snapchat.com",
